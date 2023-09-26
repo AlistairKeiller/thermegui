@@ -1,9 +1,13 @@
-use egui::plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotResponse};
+use eframe::emath;
+use egui::{
+    plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotResponse},
+    Color32, Pos2, Rect, Sense, Stroke, Vec2,
+};
 
 const MINV: f64 = 0.;
-const MAXV: f64 = 1.;
+const MAXV: f64 = 10000.;
 const MINP: f64 = 0.;
-const MAXP: f64 = 1.;
+const MAXP: f64 = 100.;
 const LINERES: i64 = 1000;
 const GAMMA: f64 = 5. / 3.;
 
@@ -103,6 +107,37 @@ impl eframe::App for TemplateApp {
                     *pressure = pointer_coordinate.y;
                 }
             }
+            let (response, painter) = ui.allocate_painter(
+                Vec2::new(ui.available_width(), ui.available_height()),
+                Sense::hover(),
+            );
+            let to_screen = emath::RectTransform::from_to(
+                Rect::from_min_size(Pos2::ZERO, response.rect.size()),
+                response.rect,
+            );
+            painter.add(eframe::epaint::RectShape {
+                rect: to_screen.transform_rect(Rect {
+                    min: Pos2 {
+                        x: response.rect.width() / 2. - ((*volume).sqrt() / 2.) as f32,
+                        y: response.rect.height() / 2. - ((*volume).sqrt() / 2.) as f32,
+                    },
+                    max: Pos2 {
+                        x: response.rect.width() / 2. + ((*volume).sqrt() / 2.) as f32,
+                        y: response.rect.height() / 2. + ((*volume).sqrt() / 2.) as f32,
+                    },
+                }),
+                rounding: egui::Rounding {
+                    nw: 0.,
+                    ne: 0.,
+                    sw: 0.,
+                    se: 0.,
+                },
+                fill: Color32::TRANSPARENT,
+                stroke: Stroke {
+                    width: 5.,
+                    color: Color32::GRAY,
+                },
+            });
         });
     }
 }
