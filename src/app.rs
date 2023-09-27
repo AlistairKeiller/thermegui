@@ -109,23 +109,9 @@ impl eframe::App for TemplateApp {
                         )
                         .name("isochoric"),
                     );
-                    // efficent drawing but does not work with axis selector
-                    // plot_ui.line(
-                    //     Line::new(PlotPoints::new(Vec::from([
-                    //         [MINV, *pressure],
-                    //         [MAXV, *pressure],
-                    //     ])))
-                    //     .name("isobaric"),
-                    // );
-                    // plot_ui.line(
-                    //     Line::new(PlotPoints::new(Vec::from([
-                    //         [*volume, MINP],
-                    //         [*volume, MAXP],
-                    //     ])))
-                    //     .name("isochoric"),
-                    // );
                     plot_ui.pointer_coordinate()
                 });
+
             if response.dragged_by(egui::PointerButton::Primary) && response.hovered() {
                 if let Some(pointer_coordinate) = pointer_coordinate {
                     self.volume = pointer_coordinate.x;
@@ -167,12 +153,25 @@ impl eframe::App for TemplateApp {
                     color: Color32::GRAY,
                 },
             });
-            // Frame::popup(ui.style())
-            //     .stroke(Stroke::NONE)
-            //     .show(ui, |ui| {
-            //         ui.set_max_width(270.0);
-            //         CollapsingHeader::new("Settings").show(ui, |ui| ui.label("test"));
-            //     });
+            ui.allocate_ui_at_rect(
+                Rect {
+                    min: Pos2 { x: 10., y: 10. },
+                    max: Pos2 { x: 250., y: 250. },
+                },
+                |ui| {
+                    Frame::popup(ui.style()).show(ui, |ui| {
+                        ui.collapsing("info", |ui| {
+                            ui.label(format!(
+                                "T= {:.1} K\nU = {:.1} J\nTotal W = {:.1} J\nTotal Q = {:.1}",
+                                self.pressure * self.volume / (N * R),
+                                CV / R * self.pressure * self.volume,
+                                self.work,
+                                CV / R * self.pressure * self.volume + self.work
+                            ));
+                        })
+                    })
+                },
+            );
         });
     }
 }
