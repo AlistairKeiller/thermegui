@@ -42,8 +42,8 @@ impl eframe::App for TemplateApp {
                 .allow_double_click_reset(false)
                 .allow_boxed_zoom(false)
                 .allow_drag(false)
-                .show_x(false)
-                .show_y(false)
+                // .show_x(false)
+                // .show_y(false)
                 .show_axes([false, false])
                 .show(ui, |plot_ui| {
                     plot_ui.set_plot_bounds(PlotBounds::from_min_max([MINV, MINP], [MAXV, MAXP]));
@@ -70,19 +70,36 @@ impl eframe::App for TemplateApp {
                         .name("adiabatic"),
                     );
                     plot_ui.line(
-                        Line::new(PlotPoints::new(Vec::from([
-                            [MINV, *pressure],
-                            [MAXV, *pressure],
-                        ])))
+                        Line::new(
+                            (0..LINERES)
+                                .map(|i| [i as f64 * (MAXV - MINV) / LINERES as f64, *pressure])
+                                .collect::<PlotPoints>(),
+                        )
                         .name("isobaric"),
                     );
                     plot_ui.line(
-                        Line::new(PlotPoints::new(Vec::from([
-                            [*volume, MINP],
-                            [*volume, MAXP],
-                        ])))
+                        Line::new(
+                            (0..LINERES)
+                                .map(|i| [*volume, i as f64 * (MAXP - MINP) / LINERES as f64])
+                                .collect::<PlotPoints>(),
+                        )
                         .name("isochoric"),
                     );
+                    // efficent drawing but does not work with axis selector
+                    // plot_ui.line(
+                    //     Line::new(PlotPoints::new(Vec::from([
+                    //         [MINV, *pressure],
+                    //         [MAXV, *pressure],
+                    //     ])))
+                    //     .name("isobaric"),
+                    // );
+                    // plot_ui.line(
+                    //     Line::new(PlotPoints::new(Vec::from([
+                    //         [*volume, MINP],
+                    //         [*volume, MAXP],
+                    //     ])))
+                    //     .name("isochoric"),
+                    // );
                     plot_ui.pointer_coordinate()
                 });
             if response.dragged() && response.hovered() {
