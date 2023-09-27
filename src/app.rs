@@ -43,12 +43,20 @@ impl eframe::App for TemplateApp {
                 ..
             } = Plot::new("my_plot")
                 .label_formatter(move |name, value| {
+                    let delta_u = CV / R * (value.x * value.y - pressure * volume);
+                    let work = match name {
+                        "isothermic" => pressure * volume * (value.x / volume).ln(),
+                        "adiabatic" => -delta_u,
+                        _ => (value.y + pressure) / 2. * (value.x - volume),
+                    };
                     format!(
-                        "{}\nV = {:.1} m^3\nP = {:.1} Pa\nΔU = {:.1} J",
+                        "{}\nV = {:.1} m^3\nP = {:.1} Pa\nΔU = {:.1} J\nW = {:.1} J\nQ = {:.1} J",
                         name,
                         value.x,
                         value.y,
-                        3. / 2. * (value.x * value.y - pressure * volume)
+                        delta_u,
+                        work,
+                        delta_u + work
                     )
                 })
                 // .label_formatter(fmt)
