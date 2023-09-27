@@ -1,15 +1,21 @@
 use eframe::emath;
 use egui::{
-    plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotResponse},
+    plot::{Legend, Line, Plot, PlotBounds, PlotPoint, PlotPoints, PlotResponse},
     Color32, Pos2, Rect, Sense, Stroke, Vec2,
 };
 
-const MINV: f64 = 0.;
-const MAXV: f64 = 10000.;
-const MINP: f64 = 0.;
-const MAXP: f64 = 100.;
+const MINV: f64 = 0.; // m^3
+const MAXV: f64 = 10.; // m^3
+const MINP: f64 = 0.; // Pa
+const MAXP: f64 = 10.; // Pa
 const LINERES: i64 = 1000;
-const GAMMA: f64 = 5. / 3.;
+const R: f64 = 8.314; //J mol^-1 K^-1
+const N: f64 = 1.; // mol
+const CV: f64 = 3. / 2. * R; // J mol^-1 K^-1
+const CP: f64 = 5. / 2. * R; // J mol^-1 K^-1
+const GAMMA: f64 = CP / CV;
+
+const PIXELS_TO_METERS: f64 = 100.;
 
 pub struct TemplateApp {
     pressure: f64,
@@ -27,14 +33,25 @@ impl Default for TemplateApp {
 
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { pressure, volume } = self;
-
         egui::CentralPanel::default().show(ctx, |ui| {
+            let pressure = self.pressure;
+            let volume = self.volume;
+
             let PlotResponse {
                 response,
                 inner: pointer_coordinate,
                 ..
             } = Plot::new("my_plot")
+                .label_formatter(move |name, value| {
+                    format!(
+                        "{}\nV = {:.1} m^3\nP = {:.1} Pa\nΔU = {:.1} J",
+                        name,
+                        value.x,
+                        value.y,
+                        3. / 2. * (value.x * value.y - pressure * volume)
+                    )
+                })
+                // .label_formatter(fmt)
                 .legend(Legend::default())
                 .height(500.)
                 .allow_zoom(false)
@@ -42,8 +59,6 @@ impl eframe::App for TemplateApp {
                 .allow_double_click_reset(false)
                 .allow_boxed_zoom(false)
                 .allow_drag(false)
-                // .show_x(false)
-                // .show_y(false)
                 .show_axes([false, false])
                 .show(ui, |plot_ui| {
                     plot_ui.set_plot_bounds(PlotBounds::from_min_max([MINV, MINP], [MAXV, MAXP]));
@@ -52,7 +67,7 @@ impl eframe::App for TemplateApp {
                             (0..LINERES)
                                 .map(|i| {
                                     let v = MINV + i as f64 * (MAXV - MINV) / LINERES as f64;
-                                    [v, *pressure * *volume / v]
+                                    [v, self.pressure * self.volume / v]
                                 })
                                 .collect::<PlotPoints>(),
                         )
@@ -63,7 +78,7 @@ impl eframe::App for TemplateApp {
                             (0..LINERES)
                                 .map(|i| {
                                     let v = MINV + i as f64 * (MAXV - MINV) / LINERES as f64;
-                                    [v, *pressure * (*volume).powf(GAMMA) / v.powf(GAMMA)]
+                                    [v, self.pressure * self.volume.powf(GAMMA) / v.powf(GAMMA)]
                                 })
                                 .collect::<PlotPoints>(),
                         )
@@ -72,7 +87,7 @@ impl eframe::App for TemplateApp {
                     plot_ui.line(
                         Line::new(
                             (0..LINERES)
-                                .map(|i| [i as f64 * (MAXV - MINV) / LINERES as f64, *pressure])
+                                .map(|i| [i as f64 * (MAXV - MINV) / LINERES as f64, self.pressure])
                                 .collect::<PlotPoints>(),
                         )
                         .name("isobaric"),
@@ -80,7 +95,7 @@ impl eframe::App for TemplateApp {
                     plot_ui.line(
                         Line::new(
                             (0..LINERES)
-                                .map(|i| [*volume, i as f64 * (MAXP - MINP) / LINERES as f64])
+                                .map(|i| [self.volume, i as f64 * (MAXP - MINP) / LINERES as f64])
                                 .collect::<PlotPoints>(),
                         )
                         .name("isochoric"),
@@ -102,10 +117,10 @@ impl eframe::App for TemplateApp {
                     // );
                     plot_ui.pointer_coordinate()
                 });
-            if response.dragged() && response.hovered() {
+            if response.dragged_by(egui::PointerButton::Primary) && response.hovered() {
                 if let Some(pointer_coordinate) = pointer_coordinate {
-                    *volume = pointer_coordinate.x;
-                    *pressure = pointer_coordinate.y;
+                    self.volume = pointer_coordinate.x;
+                    self.pressure = pointer_coordinate.y;
                 }
             }
             let (response, painter) = ui.allocate_painter(
@@ -119,12 +134,16 @@ impl eframe::App for TemplateApp {
             painter.add(eframe::epaint::RectShape {
                 rect: to_screen.transform_rect(Rect {
                     min: Pos2 {
-                        x: response.rect.width() / 2. - ((*volume).sqrt() / 2.) as f32,
-                        y: response.rect.height() / 2. - ((*volume).sqrt() / 2.) as f32,
+                        x: response.rect.width() / 2.
+                            - (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
+                        y: response.rect.height() / 2.
+                            - (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
                     },
                     max: Pos2 {
-                        x: response.rect.width() / 2. + ((*volume).sqrt() / 2.) as f32,
-                        y: response.rect.height() / 2. + ((*volume).sqrt() / 2.) as f32,
+                        x: response.rect.width() / 2.
+                            + (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
+                        y: response.rect.height() / 2.
+                            + (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
                     },
                 }),
                 rounding: egui::Rounding {
