@@ -3,6 +3,7 @@ use egui::{
     plot::{Legend, Line, Plot, PlotBounds, PlotPoint, PlotPoints, PlotResponse},
     CollapsingHeader, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
+use rapier2d::prelude::*;
 
 const MINV: f64 = 0.; // m^3
 const MAXV: f64 = 10.; // m^3
@@ -21,6 +22,19 @@ pub struct TemplateApp {
     pressure: f64,
     volume: f64,
     work: f64,
+    gravity: Vector<Real>,
+    integration_parameters: IntegrationParameters,
+    island_manager: IslandManager,
+    broad_phase: BroadPhase,
+    narrow_phase: NarrowPhase,
+    rigid_body_set: RigidBodySet,
+    collider_set: ColliderSet,
+    impulse_joint_set: ImpulseJointSet,
+    multibody_joint_set: MultibodyJointSet,
+    ccd_solver: CCDSolver,
+    physics_hooks: (),
+    event_handler: (),
+    physics_pipeline: PhysicsPipeline,
 }
 
 impl Default for TemplateApp {
@@ -29,15 +43,45 @@ impl Default for TemplateApp {
             pressure: (MINP + MAXP) / 2.,
             volume: (MINV + MAXV) / 2.,
             work: 0.,
+            gravity: vector![0.0, -9.81],
+            integration_parameters: IntegrationParameters::default(),
+            island_manager: IslandManager::new(),
+            broad_phase: BroadPhase::new(),
+            narrow_phase: NarrowPhase::new(),
+            rigid_body_set: RigidBodySet::new(),
+            collider_set: ColliderSet::new(),
+            impulse_joint_set: ImpulseJointSet::new(),
+            multibody_joint_set: MultibodyJointSet::new(),
+            ccd_solver: CCDSolver::new(),
+            physics_hooks: (),
+            event_handler: (),
+            physics_pipeline: PhysicsPipeline::new(),
         }
     }
 }
 
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.physics_pipeline.step(
+            &self.gravity,
+            &self.integration_parameters,
+            &mut self.island_manager,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.rigid_body_set,
+            &mut self.collider_set,
+            &mut self.impulse_joint_set,
+            &mut self.multibody_joint_set,
+            &mut self.ccd_solver,
+            None,
+            &self.physics_hooks,
+            &self.event_handler,
+        );
         egui::CentralPanel::default().show(ctx, |ui| {
             let pressure = self.pressure;
             let volume = self.volume;
+            // let mut storage: f64 = 0.0;
+            // let stor_borrow = &mut storage;
 
             let PlotResponse {
                 response,
@@ -51,6 +95,7 @@ impl eframe::App for TemplateApp {
                         "adiabatic" => -delta_u,
                         _ => (value.y + pressure) / 2. * (value.x - volume),
                     };
+                    // *stor_borrow = 5.;
                     format!(
                         "{}\nV = {:.1} m^3\nP = {:.1} Pa\nΔU = {:.1} J\nW = {:.1} J\nQ = {:.1} J",
                         name,
@@ -142,10 +187,10 @@ impl eframe::App for TemplateApp {
                     },
                 }),
                 rounding: egui::Rounding {
-                    nw: 0.,
-                    ne: 0.,
-                    sw: 0.,
-                    se: 0.,
+                    nw: 1.,
+                    ne: 1.,
+                    sw: 1.,
+                    se: 1.,
                 },
                 fill: Color32::TRANSPARENT,
                 stroke: Stroke {
