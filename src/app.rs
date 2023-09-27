@@ -1,7 +1,7 @@
 use eframe::emath;
 use egui::{
     plot::{Legend, Line, Plot, PlotBounds, PlotPoint, PlotPoints, PlotResponse},
-    Color32, Pos2, Rect, Sense, Stroke, Vec2,
+    CollapsingHeader, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
 
 const MINV: f64 = 0.; // m^3
@@ -20,6 +20,7 @@ const PIXELS_TO_METERS: f64 = 100.;
 pub struct TemplateApp {
     pressure: f64,
     volume: f64,
+    work: f64,
 }
 
 impl Default for TemplateApp {
@@ -27,6 +28,7 @@ impl Default for TemplateApp {
         Self {
             pressure: (MINP + MAXP) / 2.,
             volume: (MINV + MAXV) / 2.,
+            work: 0.,
         }
     }
 }
@@ -59,7 +61,6 @@ impl eframe::App for TemplateApp {
                         delta_u + work
                     )
                 })
-                // .label_formatter(fmt)
                 .legend(Legend::default())
                 .height(500.)
                 .allow_zoom(false)
@@ -166,6 +167,12 @@ impl eframe::App for TemplateApp {
                     color: Color32::GRAY,
                 },
             });
+            // Frame::popup(ui.style())
+            //     .stroke(Stroke::NONE)
+            //     .show(ui, |ui| {
+            //         ui.set_max_width(270.0);
+            //         CollapsingHeader::new("Settings").show(ui, |ui| ui.label("test"));
+            //     });
         });
     }
 }
