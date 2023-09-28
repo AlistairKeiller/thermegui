@@ -16,7 +16,10 @@ const CV: f64 = 3. / 2. * R; // J mol^-1 K^-1
 const CP: f64 = 5. / 2. * R; // J mol^-1 K^-1
 const GAMMA: f64 = CP / CV;
 
-const PIXELS_TO_METERS: f64 = 100.;
+const METERS_TO_PIXELS: f64 = 100.;
+
+const WALL_THICKNESS: f64 = 5.; // m
+const BALL_RADIUS: f64 = 0.1; // m
 
 pub struct TemplateApp {
     pressure: f64,
@@ -39,17 +42,50 @@ pub struct TemplateApp {
 
 impl Default for TemplateApp {
     fn default() -> Self {
+        let mut rigid_body_set = RigidBodySet::new();
+        let mut collider_set = ColliderSet::new();
+
+        let floor_body_handle = rigid_body_set.insert(
+            RigidBodyBuilder::fixed()
+                .translation(vector![0.0, 0.0])
+                .build(),
+        );
+        collider_set.insert_with_parent(
+            ColliderBuilder::cuboid(0.2, 0.2)
+                .restitution(1.0)
+                .friction(0.0)
+                .build(),
+            floor_body_handle,
+            &mut rigid_body_set,
+        );
+        // let collider = ColliderBuilder::cuboid(100.0, 0.1).build();
+        // collider_set.insert(collider);
+
+        let ball_body_handle = rigid_body_set.insert(
+            RigidBodyBuilder::dynamic()
+                .translation(vector![0.0, 1.0])
+                .build(),
+        );
+        collider_set.insert_with_parent(
+            ColliderBuilder::ball(BALL_RADIUS as f32)
+                .restitution(1.0)
+                .friction(0.0)
+                .build(),
+            ball_body_handle,
+            &mut rigid_body_set,
+        );
+
         Self {
             pressure: (MINP + MAXP) / 2.,
             volume: (MINV + MAXV) / 2.,
             work: 0.,
-            gravity: vector![0.0, -9.81],
+            gravity: vector![0.0, -1.0],
             integration_parameters: IntegrationParameters::default(),
             island_manager: IslandManager::new(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
-            rigid_body_set: RigidBodySet::new(),
-            collider_set: ColliderSet::new(),
+            rigid_body_set,
+            collider_set,
             impulse_joint_set: ImpulseJointSet::new(),
             multibody_joint_set: MultibodyJointSet::new(),
             ccd_solver: CCDSolver::new(),
@@ -62,6 +98,7 @@ impl Default for TemplateApp {
 
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint();
         self.physics_pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -168,36 +205,89 @@ impl eframe::App for TemplateApp {
                 Sense::hover(),
             );
             let to_screen = emath::RectTransform::from_to(
-                Rect::from_min_size(Pos2::ZERO, response.rect.size()),
-                response.rect,
-            );
-            painter.add(eframe::epaint::RectShape {
-                rect: to_screen.transform_rect(Rect {
+                Rect {
                     min: Pos2 {
-                        x: response.rect.width() / 2.
-                            - (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
-                        y: response.rect.height() / 2.
-                            - (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
+                        x: -response.rect.width() / (2. * METERS_TO_PIXELS as f32),
+                        y: response.rect.height() / (2. * METERS_TO_PIXELS as f32),
                     },
                     max: Pos2 {
-                        x: response.rect.width() / 2.
-                            + (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
-                        y: response.rect.height() / 2.
-                            + (PIXELS_TO_METERS * self.volume.sqrt() / 2.) as f32,
+                        x: response.rect.width() / (2. * METERS_TO_PIXELS as f32),
+                        y: -response.rect.height() / (2. * METERS_TO_PIXELS as f32),
                     },
-                }),
-                rounding: egui::Rounding {
-                    nw: 1.,
-                    ne: 1.,
-                    sw: 1.,
-                    se: 1.,
                 },
-                fill: Color32::TRANSPARENT,
-                stroke: Stroke {
-                    width: 5.,
-                    color: Color32::GRAY,
-                },
-            });
+                response.rect,
+            );
+            // let to_screen = emath::RectTransform::from_to(
+            //     Rect::from_min_size(Pos2::ZERO, response.rect.size()),
+            //     response.rect,
+            // );
+            // painter.add(eframe::epaint::RectShape {
+            //     rect: to_screen.transform_rect(Rect {
+            //         min: Pos2 {
+            //             x: response.rect.width() / 2.
+            //                 - (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
+            //             y: response.rect.height() / 2.
+            //                 - (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
+            //         },
+            //         max: Pos2 {
+            //             x: response.rect.width() / 2.
+            //                 + (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
+            //             y: response.rect.height() / 2.
+            //                 + (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
+            //         },
+            //     }),
+            //     rounding: egui::Rounding {
+            //         nw: 1.,
+            //         ne: 1.,
+            //         sw: 1.,
+            //         se: 1.,
+            //     },
+            //     fill: Color32::TRANSPARENT,
+            // stroke: Stroke {
+            //     width: WALL_THICKNESS,
+            //     color: Color32::GRAY,
+            // },
+            // });
+
+            for (handle, colider) in self.collider_set.iter() {
+                if let Some(parent) = colider.parent() {
+                    if let Some(body) = self.rigid_body_set.get(parent) {
+                        if let Some(shape) = colider.shape().as_ball() {
+                            painter.add(eframe::epaint::CircleShape {
+                                center: to_screen.transform_pos(Pos2 {
+                                    x: body.translation().x,
+                                    y: body.translation().y,
+                                }),
+                                radius: shape.radius * METERS_TO_PIXELS as f32,
+                                fill: Color32::GRAY,
+                                stroke: Stroke::default(),
+                            });
+                        }
+                        if let Some(shape) = colider.shape().as_cuboid() {
+                            painter.add(eframe::epaint::RectShape {
+                                rect: to_screen.transform_rect(Rect {
+                                    min: Pos2 {
+                                        x: body.translation().x - shape.half_extents.x,
+                                        y: body.translation().y + shape.half_extents.y,
+                                    },
+                                    max: Pos2 {
+                                        x: body.translation().x + shape.half_extents.x,
+                                        y: body.translation().y - shape.half_extents.y,
+                                    },
+                                }),
+                                rounding: egui::Rounding {
+                                    nw: 0.,
+                                    ne: 0.,
+                                    sw: 0.,
+                                    se: 0.,
+                                },
+                                fill: Color32::GRAY,
+                                stroke: Stroke::default(),
+                            });
+                        }
+                    }
+                }
+            }
             ui.allocate_ui_at_rect(
                 Rect {
                     min: Pos2 { x: 10., y: 10. },
