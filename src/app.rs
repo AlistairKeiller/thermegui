@@ -1,7 +1,7 @@
 use eframe::emath;
 use egui::{
-    plot::{Legend, Line, Plot, PlotBounds, PlotPoint, PlotPoints, PlotResponse},
-    CollapsingHeader, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
+    plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotResponse},
+    Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
 use rapier2d::prelude::*;
 
@@ -18,7 +18,7 @@ const GAMMA: f64 = CP / CV;
 
 const METERS_TO_PIXELS: f64 = 100.;
 
-const WALL_THICKNESS: f64 = 5.; // m
+// const WALL_THICKNESS: f64 = 0.1; // m
 const BALL_RADIUS: f64 = 0.1; // m
 
 pub struct TemplateApp {
@@ -217,39 +217,7 @@ impl eframe::App for TemplateApp {
                 },
                 response.rect,
             );
-            // let to_screen = emath::RectTransform::from_to(
-            //     Rect::from_min_size(Pos2::ZERO, response.rect.size()),
-            //     response.rect,
-            // );
-            // painter.add(eframe::epaint::RectShape {
-            //     rect: to_screen.transform_rect(Rect {
-            //         min: Pos2 {
-            //             x: response.rect.width() / 2.
-            //                 - (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
-            //             y: response.rect.height() / 2.
-            //                 - (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
-            //         },
-            //         max: Pos2 {
-            //             x: response.rect.width() / 2.
-            //                 + (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
-            //             y: response.rect.height() / 2.
-            //                 + (METERS_TO_PIXELS * self.volume.sqrt() / 2.) as f32,
-            //         },
-            //     }),
-            //     rounding: egui::Rounding {
-            //         nw: 1.,
-            //         ne: 1.,
-            //         sw: 1.,
-            //         se: 1.,
-            //     },
-            //     fill: Color32::TRANSPARENT,
-            // stroke: Stroke {
-            //     width: WALL_THICKNESS,
-            //     color: Color32::GRAY,
-            // },
-            // });
-
-            for (handle, colider) in self.collider_set.iter() {
+            for (_, colider) in self.collider_set.iter() {
                 if let Some(parent) = colider.parent() {
                     if let Some(body) = self.rigid_body_set.get(parent) {
                         if let Some(shape) = colider.shape().as_ball() {
