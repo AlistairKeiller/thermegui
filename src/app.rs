@@ -1,3 +1,9 @@
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
+
 use eframe::emath;
 use egui::{
     plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotResponse},
@@ -117,8 +123,8 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             let pressure = self.pressure;
             let volume = self.volume;
-            // let mut storage: f64 = 0.0;
-            // let stor_borrow = &mut storage;
+            let axes: Rc<RefCell<(f64,f64,f64)>> = Default::default();
+            let axes_clone = axes.clone();
 
             let PlotResponse {
                 response,
@@ -132,7 +138,7 @@ impl eframe::App for TemplateApp {
                         "adiabatic" => -delta_u,
                         _ => (value.y + pressure) / 2. * (value.x - volume),
                     };
-                    // *stor_borrow = 5.;
+                    *axes_clone.borrow_mut() = (value.x,value.y,work);
                     format!(
                         "{}\nV = {:.1} m^3\nP = {:.1} Pa\nΔU = {:.1} J\nW = {:.1} J\nQ = {:.1} J",
                         name,
@@ -194,10 +200,14 @@ impl eframe::App for TemplateApp {
                     plot_ui.pointer_coordinate()
                 });
 
-            if response.dragged_by(egui::PointerButton::Primary) && response.hovered() {
-                if let Some(pointer_coordinate) = pointer_coordinate {
+            if let Some(pointer_coordinate) = pointer_coordinate {
+                if response.dragged_by(egui::PointerButton::Primary) && response.hovered() {
                     self.volume = pointer_coordinate.x;
                     self.pressure = pointer_coordinate.y;
+                    self.work += (pointer_coordinate.y + pressure) / 2. * (pointer_coordinate.x - volume);
+                }
+                  if response.clicked_by(egui::PointerButton::Secondary) && response.hovered() {
+                    (self.volume, self.pressure, self.work) = *axes.borrow();
                 }
             }
             let (response, painter) = ui.allocate_painter(
@@ -271,6 +281,7 @@ impl eframe::App for TemplateApp {
                                 self.work,
                                 CV / R * self.pressure * self.volume + self.work
                             ));
+                            ui.collapsing("Keybindings", |ui| ui.label("Left Click/Drag: Move PV Diagram To Cursor Location\nRight Click: Move PV Diagram To Axes Location"));
                         })
                     })
                 },
